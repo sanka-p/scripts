@@ -1,0 +1,13 @@
+#!/bin/bash
+
+cd "$PWD"
+
+filename=$(basename $1)
+
+if [ $? == 0 ]; then
+	arm-linux-gnueabi-gcc -Wall $filename -o ${filename%%.*}
+fi
+
+if [ $? == 0 ]; then
+       	qemu-arm -L /usr/arm-linux-gnueabi ${filename%%.*}
+fi
