@@ -1,0 +1,91 @@
+#!/usr/bin/python3
+
+# Import libraries
+from pathlib import Path
+import argparse
+from pytube import YouTube
+import ffmpeg
+import shutil
+import os
+
+
+def trim(file_path):
+    """
+    Trim audio file using ffmpeg library
+    @params:
+    file_path   - Required  : Path to the saved video
+    """
+    # get start and end timestamps
+    start_time = input("Enter start time of trim (mm:ss): ")
+    end_time = input("Enter end time of trim (mm:ss): ")
+    # convert timestamps to seconds
+    start_time = int(start_time.split(
+        ":")[0]) * 60 + int(start_time.split(":")[1])
+    end_time = int(end_time.split(":")[0]) * 60 + int(end_time.split(":")[1])
+    # define stream objects
+    input_stream = ffmpeg.input(file_path)
+    trimmed_stream = input_stream.audio.filter(
+        'atrim', start=start_time, end=end_time)
+    temp_path = os.path.splitext(
+        file_path)[0] + "_temp" + os.path.splitext(file_path)[1]
+    output_stream = ffmpeg.output(trimmed_stream, temp_path)
+    # save trimmed temp file
+    ffmpeg.run(output_stream, overwrite_output=True)
+    # Replace the original file with the temp file
+    shutil.move(temp_path, file_path)
+
+
+# Create an ArgumentParser object
+parser = argparse.ArgumentParser(description='Youtube to MP3 Downloader')
+
+# Add youtube link as a positional argument
+parser.add_argument('yt_link', help='Youtube link')
+
+# Add command line arguments
+parser.add_argument('-o', '--output', dest='output_file',
+                    required=False, help='Output file name')
+parser.add_argument('-t', '--trim', action='store_true',
+                    required=False, help='Enable trimming after download')
+parser.add_argument('-p', '--path', dest='save_path',
+                    required=False, help='Output file save location')
+'''
+parser.add_argument('-i', '--input', dest='input_file', required=True, help='Input file path')
+parser.add_argument('-opt', '--option', dest='option_value', default='default', help='Optional argument')
+'''
+# Parse command line arguments
+args = parser.parse_args()
+
+yt = YouTube(
+    args.yt_link,
+    # on_progress_callback=printProgressBar,
+    # on_complete_callback=complete_func,
+    # proxies=my_proxies,
+    use_oauth=True,
+    allow_oauth_cache=True
+)
+
+# Get audio stream with highest bitrate
+stream = yt.streams.get_audio_only()
+
+# Set download path
+if args.save_path != None:
+    download_path = args.save_path
+else:
+    # if path not defined, download to current working directory
+    download_path = str(Path.cwd())
+
+# Set output filename
+if args.output_file != None:
+    output_filename = args.output_file + ".mp3"
+else:
+    # if output filename is not defined, save with youtube title
+    output_filename = str(yt.title) + ".mp3"
+
+downloaded_path = stream.download(
+    output_path=download_path,
+    filename=output_filename,
+    skip_existing=False
+)
+# Trim audio
+if args.trim:
+    trim(downloaded_path)
